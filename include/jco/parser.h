@@ -21,8 +21,6 @@ namespace jco
             std::size_t ptr;
         };
 
-        void skip_BOM(ParserState & st);
-
         enum class SSStatus
         {
             Normal, EOT
@@ -44,17 +42,29 @@ namespace jco
 
     struct ParseError : std::exception {};
 
+    struct Parser
+    {
+        explicit Parser(utf8_text const & txt);
+
+        template<typename Res>
+        Res parse()
+        {
+            return details::parse<Res>(st_);
+        }
+
+        bool eot();
+
+    private:
+        details::ParserState st_;
+    };
+
     template<typename Res>
     Res parse(utf8_text const & txt)
     {
-        details::ParserState st = { txt, 0 };
-        details::skip_BOM(st);
-        Res res = details::parse<Res>(st);
-        if (st.ptr != txt.size)
-        {
-            if (details::skip_spaces(st) != details::SSStatus::EOT)
-                throw ParseError();
-        }
+        Parser parser(txt);
+        Res res = parser.parse<Res>();
+        if (!parser.eot())
+            throw ParseError();
         return res;
     }
 

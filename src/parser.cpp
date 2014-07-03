@@ -408,4 +408,17 @@ namespace jco
             }
         }
     }
+
+    Parser::Parser(utf8_text const & txt)
+        : st_{ txt, 0 }
+    {
+        details::skip_BOM(st_);
+    }
+
+    bool Parser::eot()
+    {
+        using namespace details;
+
+        return end_of_text(st_) || (skip_spaces(st_) == SSStatus::EOT);
+    }
 }
