@@ -15,3 +15,5 @@ add_library(jco
 ${cpps}
 ${headers}
 )
+
+add_subdirectory(examples)
