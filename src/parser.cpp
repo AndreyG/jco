@@ -1,6 +1,10 @@
 #include "jco/parser.h"
 
 #include <cassert>
+#include <iostream>
+
+#include <boost/locale/encoding_utf.hpp>
+#include <boost/range/algorithm/copy.hpp>
 
 namespace jco
 {
@@ -8,7 +12,12 @@ namespace jco
     {
         void skip_BOM(ParserState & st)
         {
-            if ((st.txt.size >= 3) && (st.txt.data[0] == 0xEF) && (st.txt.data[1] == 0xBB) && (st.txt.data[2] == 0xBF))
+            static const char magick_seq[] = {
+                static_cast<char>(0xEF),
+                static_cast<char>(0xBB),
+                static_cast<char>(0xBF)
+            };
+            if ((st.txt.size >= 3) && std::equal(magick_seq, magick_seq + 3, st.txt.data))
                 st.ptr = 3;
         }
 
@@ -86,6 +95,8 @@ namespace jco
             case 'f':
             case 'n':
                 return Token::Constant;
+            default:
+                throw ParseError();
             }
         }
 
@@ -110,15 +121,18 @@ namespace jco
         }
 
         template<class OutIter>
-        void convert_to_utf8(char16_t, OutIter out)
+        void convert_to_utf8(char16_t c, OutIter out)
         {
-            throw std::logic_error("unimplemented");
+            auto str = boost::locale::conv::utf_to_utf<char>(&c, &c + 1);
+            boost::copy(str, out);
         }
 
         template<class OutIter>
-        void convert_to_utf8(char16_t, char16_t, OutIter out)
+        void convert_to_utf8(char16_t c1, char16_t c2, OutIter out)
         {
-            throw std::logic_error("unimplemented");
+            auto c = { c1, c2 };
+            auto str = boost::locale::conv::utf_to_utf<char>(std::begin(c), std::end(c));
+            boost::copy(str, out);
         }
 
         std::string read_string(ParserState & st)
@@ -255,6 +269,8 @@ namespace jco
                     case EXP_START:
                         state = EXP;
                         break;
+                    default:
+                        break;
                     }
                 }
                 else
@@ -267,6 +283,8 @@ namespace jco
             case FRAC_START:
             case EXP_START:
                 throw ParseError();
+            default:
+                break;
             }
         }
 
@@ -417,8 +435,28 @@ namespace jco
 
     bool Parser::eot()
     {
+        return details::end_of_text(st_) || (details::skip_spaces(st_) == details::SSStatus::EOT);
+    }
+
+    std::string Parser::parse_string()
+    {
         using namespace details;
 
-        return end_of_text(st_) || (skip_spaces(st_) == SSStatus::EOT);
+        if (skip_spaces(st_) != SSStatus::Normal)
+            throw ParseError();
+
+        return read_string(st_);
+    }
+
+    void Parser::expect(details::Token token)
+    {
+        if (details::next_token(st_) != token)
+            throw ParseError();
+    }
+
+    void Parser::expect(boost::string_ref str)
+    {
+        if (parse_string() != str)
+            throw ParseError();
     }
 }

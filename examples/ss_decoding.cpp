@@ -26,6 +26,6 @@ const char * serialized = "{ \
 
 int main()
 {
-    auto bounds = jco::parse<Bounds>({ serialized, strlen(serialized) });
+    auto bounds = jco::parse<Bounds>(jco::from_string(serialized));
     std::cout << bounds.southwest << ", " << bounds.northeast << std::endl;
 }

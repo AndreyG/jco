@@ -2,6 +2,11 @@
 
 #include <vector>
 #include <string>
+#include <memory>
+#include <map>
+#include <functional>
+#include <cassert>
+#include <cstring>
 
 #include <boost/utility/string_ref.hpp>
 
@@ -13,12 +18,22 @@ namespace jco
         std::size_t     size;
     };
 
+    inline utf8_text from_string(boost::string_ref str)
+    {
+        return { str.cbegin(), str.size() };
+    }
+
     namespace details
     {
         struct ParserState
         {
             utf8_text   txt;
             std::size_t ptr;
+        };
+
+        enum class Token
+        {
+            ObjBegin, ObjEnd, ArrBegin, ArrEnd, Comma, Colon, Quote, Number, Constant, EOT
         };
 
         enum class SSStatus
@@ -52,10 +67,66 @@ namespace jco
             return details::parse<Res>(st_);
         }
 
+        std::string parse_string();
+
         bool eot();
+
+        void expect(details::Token);
+        void expect(boost::string_ref str);
 
     private:
         details::ParserState st_;
+    };
+
+    template<class T>
+    using Factory = std::function<std::unique_ptr<T> (Parser &)>;
+
+    template<class T>
+    struct TypedParser
+    {
+        std::unique_ptr<T> parse_single(utf8_text const & txt)
+        {
+            using namespace details;
+
+            Parser parser(txt);
+
+            parser.expect(Token::ObjBegin);
+            parser.expect("type");
+            parser.expect(Token::Colon);
+
+            auto type = parser.parse_string();
+
+            if (auto f = find_factory(type))
+            {
+                parser.expect(Token::Comma);
+                parser.expect("description");
+                parser.expect(Token::Colon);
+                auto res = (*f)(parser);
+                parser.expect(Token::ObjEnd);
+                return res;
+            }
+            else
+                throw std::logic_error("unknown type \"" + type + "\"");
+        }
+
+        void register_factory(std::string const & type, Factory<T> factory)
+        {
+            assert(!factories_.count(type));
+            factories_[type] = std::move(factory);
+        }
+
+    private:
+        Factory<T> const * find_factory(std::string const & type) const
+        {
+            auto it = factories_.find(type);
+            if (it == factories_.end())
+                return nullptr;
+            else
+                return &it->second;
+        }
+
+    private:
+        std::map<std::string, Factory<T>> factories_;
     };
 
     template<typename Res>
@@ -70,11 +141,6 @@ namespace jco
 
     namespace details
     {
-        enum class Token
-        {
-            ObjBegin, ObjEnd, ArrBegin, ArrEnd, Comma, Colon, Quote, Number, Constant, EOT
-        };
-
         const char Quote = '\"';
 
         Token next_token(ParserState &);
