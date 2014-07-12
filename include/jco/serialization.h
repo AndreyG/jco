@@ -1,9 +1,8 @@
 #pragma once
 
 #include <ostream>
-#include <stack>
 #include <sstream>
-#include <array>
+#include <memory>
 
 #include <boost/utility/string_ref.hpp>
 #include <boost/preprocessor/cat.hpp>
@@ -62,6 +61,7 @@ namespace jco
         value_tag<Value> value(Value v) { return { v }; }
 
         string_value_tag value(const char * str);
+        string_value_tag value(std::string const & str);
 
         struct null_value_tag {};
         null_value_tag value(std::nullptr_t);
@@ -78,6 +78,11 @@ namespace jco
 
 #undef DEFINE_TAG
 
+        enum class Style
+        {
+            SingleLine, Pretty
+        };
+
         struct out_stream
         {
             void operator << (boost::string_ref str);
@@ -90,32 +95,15 @@ namespace jco
 
             out_stream& operator << (key_tag);
 
-            template<class Value>
-            out_stream& operator << (value_tag<Value> v)
-            {
-                expect(State::Key);
-                write(v.value);
-                state_.pop();
-                expect(State::ObjectBegin | State::Object);
-                state_.top() = State::Object;
-                return *this;
-            }
+            out_stream& operator << (string_value_tag);
+            out_stream& operator << (number_value_tag);
+            out_stream& operator << (bool_value_tag);
+            out_stream& operator << (null_value_tag);
 
-            explicit out_stream(std::ostream & backend);
+            out_stream(std::ostream & backend, Style style);
             ~out_stream();
 
         private:
-            enum class State
-            {
-                Initial, Terminal, ArrayBegin, Array, ObjectBegin, Object, Key, ValueArr, ValueObj,
-            };
-
-            template<size_t N>
-            using StateList = std::array<State, N>;
-
-        private:
-            State current_state() const;
-            void set_current_state(State s);
 
             friend struct array_scope;
             void open_array();
@@ -125,29 +113,9 @@ namespace jco
             void open_object();
             void close_object();
 
-            void write_comma();
-
-            void write(double);
-            void write(boost::string_ref);
-            void write(bool);
-            void write(std::nullptr_t);
-
-            void finish_arr_element();
-
-            void expect(State) const;
-
-            template<size_t N>
-            void expect(StateList<N> states) const
-            {
-                if (state_.empty() || std::find(begin(states), end(states), state_.top()) == end(states))
-                    throw SerializationError();
-            }
-
-            friend StateList<2> operator | (State s1, State s2) { return { s1, s2 }; }
-
         private:
-            std::ostream & backend_;
-            std::stack<State> state_;
+            struct implementation;
+            std::unique_ptr<implementation> pimpl;
         };
 
         template<typename T>
@@ -155,7 +123,7 @@ namespace jco
         {
             std::ostringstream ss;
             {
-                out_stream out(ss);
+                out_stream out(ss, Style::SingleLine);
                 out << t;
             }
             return ss.str();

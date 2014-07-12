@@ -140,7 +140,7 @@ int main()
 
     {
         using namespace jco::serialization;
-        out_stream out(std::cout);
+        out_stream out(std::cout, Style::SingleLine);
         array_scope as(out);
         out << mynamespace::Impl1("AAA", 239) << mynamespace::Impl2(1, 2, "3");
     }
