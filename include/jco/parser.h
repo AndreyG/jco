@@ -74,23 +74,69 @@ namespace jco
         void expect(details::Token);
         void expect(boost::string_ref str);
 
+        details::Token next_token();
+
     private:
         details::ParserState st_;
     };
 
     template<class T>
-    using Factory = std::function<std::unique_ptr<T> (Parser &)>;
-
-    template<class T>
     struct TypedParser
     {
-        std::unique_ptr<T> parse_single(utf8_text const & txt)
+        typedef std::unique_ptr<T>              TPtr;
+        typedef std::function<TPtr (Parser &)>  Factory;
+
+        TPtr parse_single(utf8_text const & txt)
         {
-            using namespace details;
+            Parser parser(txt);
+
+            auto res = parse_single_impl(parser);
+            if (!parser.eot())
+                throw ParseError();
+
+            return res;
+        }
+
+        void parse_array(utf8_text const & txt, std::function<void (TPtr)> proc)
+        {
+            using details::Token;
 
             Parser parser(txt);
 
-            parser.expect(Token::ObjBegin);
+            parser.expect(Token::ArrBegin);
+            if (parser.next_token() != Token::ArrEnd)
+            {
+                proc(parse_single_impl(parser, true));
+                for (;;)
+                {
+                    switch (parser.next_token())
+                    {
+                    case Token::ArrEnd:
+                        return;
+                    case Token::Comma:
+                        proc(parse_single_impl(parser));
+                        break;
+                    default:
+                        throw ParseError();
+                    }
+                }
+            }
+        }
+
+        void register_factory(std::string const & type, Factory factory)
+        {
+            assert(!factories_.count(type));
+            factories_[type] = std::move(factory);
+        }
+
+    private:
+        TPtr parse_single_impl(Parser & parser, bool obj_started = false)
+        {
+            using details::Token;
+
+            if (!obj_started)
+                parser.expect(Token::ObjBegin);
+
             parser.expect("type");
             parser.expect(Token::Colon);
 
@@ -109,14 +155,8 @@ namespace jco
                 throw std::logic_error("unknown type \"" + type + "\"");
         }
 
-        void register_factory(std::string const & type, Factory<T> factory)
-        {
-            assert(!factories_.count(type));
-            factories_[type] = std::move(factory);
-        }
-
     private:
-        Factory<T> const * find_factory(std::string const & type) const
+        Factory const * find_factory(std::string const & type) const
         {
             auto it = factories_.find(type);
             if (it == factories_.end())
@@ -126,7 +166,7 @@ namespace jco
         }
 
     private:
-        std::map<std::string, Factory<T>> factories_;
+        std::map<std::string, Factory> factories_;
     };
 
     template<typename Res>

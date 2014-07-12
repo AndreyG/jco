@@ -141,18 +141,67 @@ namespace mynamespace
     Impl2 obj2(566, 30, "magick numbers");
 }
 
-int main()
+void print_separator()
 {
-    std::cout << "\n" << mynamespace::serialized1 << std::endl;
+    std::cout << "\n--------------------------------------\n\n";
+}
 
+void parse_obj_from_str()
+{
+    auto s1 = "{\"type\" : \"mynamespace::Impl1\", \"description\" : { \"a\" : \"AAA\", \"b\" : 239 } }";
+    auto s2 = "{\"type\" : \"mynamespace::Impl2\", \"description\" : { \"y\" : 30, \"name\" : \"QQQ\", \"x\" : 566 } }";
+
+    jco::TypedParser<IMyInterface> parser;
+    REGISTER_JCO_FACTORY(parser, mynamespace::Impl1);
+    REGISTER_JCO_FACTORY(parser, mynamespace::Impl2);
+
+    std::cout << parser.parse_single(jco::from_string(s1))->to_string() << std::endl;
+    std::cout << parser.parse_single(jco::from_string(s2))->to_string() << std::endl;
+}
+
+void serialize_array()
+{
+    using namespace jco::serialization;
+    out_stream out(std::cout, Style::Pretty);
+    array_scope as(out);
+    out << mynamespace::Impl1("AAA", 239) << mynamespace::Impl2(1, 2, "3");
+}
+
+void parse_array()
+{
+    std::ostringstream ss;
     {
         using namespace jco::serialization;
-        out_stream out(std::cout, Style::Pretty);
+        out_stream out(ss, Style::Pretty);
         array_scope as(out);
         out << mynamespace::Impl1("AAA", 239) << mynamespace::Impl2(1, 2, "3");
     }
+    auto str = ss.str();
 
-    std::cout << std::endl;
+    jco::TypedParser<IMyInterface> parser;
+    REGISTER_JCO_FACTORY(parser, mynamespace::Impl1);
+    REGISTER_JCO_FACTORY(parser, mynamespace::Impl2);
+
+    parser.parse_array(jco::from_string(str), [] (std::unique_ptr<IMyInterface> obj) {
+        std::cout << obj->to_string() << std::endl;
+    });
+}
+
+int main()
+{
+    print_separator();
+
+    parse_obj_from_str();
+
+    print_separator();
+
+    std::cout << mynamespace::serialized1 << std::endl;
+
+    print_separator();
+
+    serialize_array();
+
+    print_separator();
 
     jco::TypedParser<IMyInterface> parser;
     REGISTER_JCO_FACTORY(parser, mynamespace::Impl1);
@@ -174,9 +223,7 @@ int main()
         assert(mynamespace::obj2 == dynamic_cast<mynamespace::Impl2 &>(*deserialized2));
     }
 
-    auto s1 = "{\"type\" : \"mynamespace::Impl1\", \"description\" : { \"a\" : \"AAA\", \"b\" : 239 } }";
-    auto s2 = "{\"type\" : \"mynamespace::Impl2\", \"description\" : { \"y\" : 30, \"name\" : \"QQQ\", \"x\" : 566 } }";
+    print_separator();
 
-    std::cout << parser.parse_single(jco::from_string(s1))->to_string() << std::endl;
-    std::cout << parser.parse_single(jco::from_string(s2))->to_string() << std::endl;
+    parse_array();
 }

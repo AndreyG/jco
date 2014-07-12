@@ -448,9 +448,15 @@ namespace jco
         return read_string(st_);
     }
 
-    void Parser::expect(details::Token token)
+    details::Token Parser::next_token()
     {
-        if (details::next_token(st_) != token)
+        return details::next_token(st_);
+    }
+
+    void Parser::expect(details::Token expected)
+    {
+        auto real = next_token();
+        if (real != expected)
             throw ParseError();
     }
 
