@@ -8,6 +8,7 @@ set(cpps
     src/printer_base.cpp
     src/printer_factory.cpp
     src/single_line_printer.cpp
+    src/pretty_printer.cpp
 )
 
 file(GLOB_RECURSE headers src/*.h include/*.h)

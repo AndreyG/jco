@@ -99,6 +99,11 @@ namespace mynamespace
             return ss.str();
         }
 
+        bool operator == (Impl2 const & other) const
+        {
+            return (x_ == other.x_) && (y_ == other.y_) && (name_ == other.name_);
+        }
+
     private:
         double x_, y_;
         std::string name_;
@@ -132,6 +137,8 @@ namespace mynamespace
 
     Impl1 obj1("AAA", 239);
     std::string serialized1 = jco::serialization::to_string(obj1);
+
+    Impl2 obj2(566, 30, "magick numbers");
 }
 
 int main()
@@ -140,7 +147,7 @@ int main()
 
     {
         using namespace jco::serialization;
-        out_stream out(std::cout, Style::SingleLine);
+        out_stream out(std::cout, Style::Pretty);
         array_scope as(out);
         out << mynamespace::Impl1("AAA", 239) << mynamespace::Impl2(1, 2, "3");
     }
@@ -153,6 +160,19 @@ int main()
 
     auto deserialized1 = parser.parse_single(jco::from_string(mynamespace::serialized1));
     assert(mynamespace::obj1 == dynamic_cast<mynamespace::Impl1 &>(*deserialized1));
+
+    {
+        std::ostringstream ss;
+        {
+            using namespace jco::serialization;
+            out_stream out(ss, Style::Pretty);
+            out << mynamespace::obj2;
+        }
+        auto str = ss.str();
+        std::cout << str << std::endl;
+        auto deserialized2 = parser.parse_single(jco::from_string(str));
+        assert(mynamespace::obj2 == dynamic_cast<mynamespace::Impl2 &>(*deserialized2));
+    }
 
     auto s1 = "{\"type\" : \"mynamespace::Impl1\", \"description\" : { \"a\" : \"AAA\", \"b\" : 239 } }";
     auto s2 = "{\"type\" : \"mynamespace::Impl2\", \"description\" : { \"y\" : 30, \"name\" : \"QQQ\", \"x\" : 566 } }";
