@@ -9,6 +9,8 @@ public:
     virtual ~IMyInterface() = 0;
 
     virtual std::string to_string() const = 0;
+
+    virtual void serialize(jco::serialization::out_stream &) const = 0;
 };
 
 IMyInterface::~IMyInterface() {}
@@ -27,7 +29,12 @@ public:                                                                         
             << key("description") << value(object);                                     \
         o.serialize_descr(out);                                                         \
         return out;                                                                     \
-    }
+    }                                                                                   \
+                                                                                        \
+    void serialize(jco::serialization::out_stream & out) const override                 \
+    {                                                                                   \
+        out << *this;                                                                   \
+    }                                                                                   \
 
 #define REGISTER_JCO_FACTORY(parser, classname) \
     parser.register_factory(classname::JCO_CLASS_NAME, &classname::from_jco);
@@ -169,20 +176,20 @@ void serialize_array()
 
 void parse_array()
 {
-    std::ostringstream ss;
-    {
-        using namespace jco::serialization;
-        out_stream out(ss, Style::Pretty);
-        array_scope as(out);
-        out << mynamespace::Impl1("AAA", 239) << mynamespace::Impl2(1, 2, "3");
-    }
-    auto str = ss.str();
+    typedef std::unique_ptr<IMyInterface> IMyInterfacePtr;
+
+    IMyInterfacePtr objects[] = {
+        IMyInterfacePtr(new mynamespace::Impl1("AAA", 239)),
+        IMyInterfacePtr(new mynamespace::Impl2(1, 2, "3"))
+    };
+
+    auto str = jco::serialization::to_string(objects);
 
     jco::TypedParser<IMyInterface> parser;
     REGISTER_JCO_FACTORY(parser, mynamespace::Impl1);
     REGISTER_JCO_FACTORY(parser, mynamespace::Impl2);
 
-    parser.parse_array(jco::from_string(str), [] (std::unique_ptr<IMyInterface> obj) {
+    parser.parse_array(jco::from_string(str), [] (IMyInterfacePtr obj) {
         std::cout << obj->to_string() << std::endl;
     });
 }

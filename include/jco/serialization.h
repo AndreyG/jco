@@ -118,6 +118,17 @@ namespace jco
             std::unique_ptr<implementation> pimpl;
         };
 
+        template<typename T, size_t N>
+        out_stream& operator << (out_stream& out, std::unique_ptr<T> const (& range)[N])
+        {
+            array_scope as(out);
+
+            for (auto const & ptr : range)
+                ptr->serialize(out);
+
+            return out;
+        }
+
         template<typename T>
         std::string to_string(T const & t)
         {
