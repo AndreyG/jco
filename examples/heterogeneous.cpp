@@ -3,17 +3,11 @@
 #include <iostream>
 #include <sstream>
 
-class IMyInterface
+class IMyInterface : public jco::serialization::ISerializable
 {
 public:
-    virtual ~IMyInterface() = 0;
-
     virtual std::string to_string() const = 0;
-
-    virtual void serialize(jco::serialization::out_stream &) const = 0;
 };
-
-IMyInterface::~IMyInterface() {}
 
 #define DECLARE_JCO_FACTORY(classname, jconame)                                         \
 public:                                                                                 \
@@ -178,7 +172,7 @@ void parse_array()
 {
     typedef std::unique_ptr<IMyInterface> IMyInterfacePtr;
 
-    IMyInterfacePtr objects[] = {
+    auto objects = {
         IMyInterfacePtr(new mynamespace::Impl1("AAA", 239)),
         IMyInterfacePtr(new mynamespace::Impl2(1, 2, "3"))
     };

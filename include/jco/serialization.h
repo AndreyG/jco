@@ -118,8 +118,86 @@ namespace jco
             std::unique_ptr<implementation> pimpl;
         };
 
-        template<typename T, size_t N>
-        out_stream& operator << (out_stream& out, std::unique_ptr<T> const (& range)[N])
+        class ISerializable
+        {
+        public:
+            virtual void serialize(jco::serialization::out_stream &) const = 0;
+
+            virtual ~ISerializable() {}
+        };
+
+        namespace details
+        {
+            template<class T, bool is_pointer>
+            struct is_pointer_serializable_impl;
+
+            template<class T>
+            struct is_pointer_serializable_impl<T, false> : std::false_type {};
+
+            template<class Pointer>
+            struct is_pointer_serializable_impl<Pointer, true>
+            {
+            private:
+                typedef decltype(*std::declval<Pointer>()) ref_t;
+
+            public:
+                static const bool value = std::is_convertible<ref_t, ISerializable const &>::value;
+            };
+
+            template<class T>
+            struct is_pointer
+            {
+            private:
+                template<class Pointer>
+                using ref_t = typename std::decay<decltype(*std::declval<Pointer>())>::type;
+
+                template<typename Pointer> std::true_type   static test(ref_t<Pointer> *);
+                template<typename Pointer> std::false_type  static test(...);
+
+            public:
+                static const bool value = std::is_same<decltype(test<T>(nullptr)), std::true_type>::value;
+            };
+
+            template<class T, bool is_range>
+            struct is_range_serializable_impl;
+
+            template<class T>
+            struct is_range_serializable_impl<T, false> : std::false_type {};
+
+            template<class Range>
+            struct is_range_serializable_impl<Range, true>
+            {
+            private:
+                typedef decltype(*std::begin(std::declval<Range>())) value_t;
+
+            public:
+                static const bool value = is_pointer_serializable_impl<value_t, is_pointer<value_t>::value>::value;
+            };
+
+            template<class T>
+            struct is_range
+            {
+            private:
+                template<typename Range> std::true_type  static test(decltype(std::begin(std::declval<Range>())) *);
+                template<typename Range> std::false_type static test(...);
+
+            public:
+                static const bool value = std::is_same<decltype(test<T>(nullptr)), std::true_type>::value;
+            };
+
+            template<class T>
+            bool constexpr is_serializable()
+            {
+                return is_range_serializable_impl<T, is_range<T>::value>::value;
+            }
+        }
+
+        template<class Range>
+        constexpr bool is_serializable() { return details::is_serializable<Range>(); }
+
+        template<class Range>
+        out_stream& operator << (typename std::enable_if<is_serializable<Range>(), out_stream>::type & out,
+                                 Range const & range)
         {
             array_scope as(out);
 
