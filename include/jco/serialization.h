@@ -24,6 +24,25 @@ namespace jco
             out_stream & out_;
         };
 
+        struct array_stream
+        {
+            explicit array_stream(out_stream & os)
+                : scope_(os)
+                , os_(os)
+            {}
+
+            template<class T>
+            array_stream& operator << (T t)
+            {
+                os_ << t;
+                return *this;
+            }
+
+        private:
+            array_scope scope_;
+            out_stream & os_;
+        };
+
         struct object_scope
         {
             explicit object_scope(out_stream &);
@@ -85,10 +104,11 @@ namespace jco
 
         struct out_stream
         {
-            void operator << (boost::string_ref str);
-            void operator << (double x);
-            void operator << (bool f);
-            void operator << (std::nullptr_t);
+            out_stream& operator << (boost::string_ref str);
+            out_stream& operator << (char const * str);
+            out_stream& operator << (double x);
+            out_stream& operator << (bool f);
+            out_stream& operator << (std::nullptr_t);
 
             void operator << (array_value_tag);
             void operator << (object_value_tag);

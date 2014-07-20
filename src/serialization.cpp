@@ -42,5 +42,10 @@ namespace jco
         {
             return value(boost::string_ref(str));
         }
+
+        null_value_tag value(std::nullptr_t)
+        {
+            return {};
+        }
     }
 }

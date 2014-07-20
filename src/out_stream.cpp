@@ -26,6 +26,11 @@ namespace jco
             template<class Value>
             out_stream& write(value_tag<Value> v);
 
+            out_stream& write(null_value_tag);
+
+            template<class Value>
+            out_stream& write_primitive(Value);
+
             void finish_arr_element();
 
             State current_state() const;
@@ -109,6 +114,16 @@ namespace jco
             return ostream_;
         }
 
+        out_stream& out_stream::implementation::write(null_value_tag)
+        {
+            expect(State::Key);
+            printer->print(nullptr);
+            state_.pop();
+            expect(State::ObjectBegin | State::Object);
+            state_.top() = State::Object;
+            return ostream_;
+        }
+
         State out_stream::implementation::current_state() const
         {
             if (state_.empty())
@@ -125,6 +140,29 @@ namespace jco
         {
             if (current_state() == State::ArrayBegin)
                 set_current_state(State::Array);
+        }
+
+        template<class Value>
+        out_stream& out_stream::implementation::write_primitive(Value v)
+        {
+            switch (current_state())
+            {
+            case State::Initial:
+                printer->print(v);
+                set_current_state(State::Terminal);
+                break;
+            case State::ArrayBegin:
+                printer->print(v);
+                set_current_state(State::Array);
+                break;
+            case State::Array:
+                printer->separate_array_elements();
+                printer->print(v);
+                break;
+            default:
+                throw SerializationError();
+            }
+            return ostream_;
         }
 
         void out_stream::open_array()
@@ -209,6 +247,12 @@ namespace jco
             pimpl->set_current_state(State::ValueObj);
         }
 
+        void out_stream::operator <<(array_value_tag)
+        {
+            pimpl->expect(State::Key);
+            pimpl->set_current_state(State::ValueArr);
+        }
+
         out_stream& out_stream::operator << (key_tag key)
         {
             switch (pimpl->current_state())
@@ -225,6 +269,31 @@ namespace jco
             pimpl->printer->key(key.name());
             pimpl->push_state(State::Key);
             return *this;
+        }
+
+        out_stream& out_stream::operator << (null_value_tag tag)
+        {
+            return pimpl->write(tag);
+        }
+
+        out_stream& out_stream::operator << (bool f)
+        {
+            return pimpl->write_primitive(f);
+        }
+
+        out_stream& out_stream::operator << (double x)
+        {
+            return pimpl->write_primitive(x);
+        }
+
+        out_stream& out_stream::operator << (const char * str)
+        {
+            return pimpl->write_primitive(boost::string_ref(str));
+        }
+
+        out_stream& out_stream::operator << (std::nullptr_t)
+        {
+            return pimpl->write_primitive(nullptr);
         }
 
         PrinterPtr make_printer(std::ostream & backend, Style style);
