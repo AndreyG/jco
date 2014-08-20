@@ -140,7 +140,7 @@ namespace jco
             assert(get_symbol(st) == Quote);
             ++st.ptr;
 
-            std::vector<char> res;
+            std::string res;
 
             for (;;)
             {
@@ -153,7 +153,7 @@ namespace jco
                 {
                 case Quote:
                     ++st.ptr;
-                    return std::string(res.begin(), res.end());
+                    return res;
                 case '\\':
                     ++st.ptr;
                     if (end_of_text(st))
