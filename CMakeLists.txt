@@ -13,13 +13,16 @@ set(cpps
 
 file(GLOB_RECURSE headers src/*.h include/*.h)
 
-include_directories(include)
-
 set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -Wextra -Werror=return-type")
 
 add_library(jco
 ${cpps}
 ${headers}
+)
+
+target_include_directories(jco
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
 add_subdirectory(examples)
