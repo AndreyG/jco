@@ -30,13 +30,13 @@
         DECLARE_FIELDS(fields)                  \
     };
 
-#define CALL(r, data, i, elem) f(s.GET_CT_NAME(elem), GET_RT_NAME(elem));
+#define CALL(r, data, elem) f(s.GET_CT_NAME(elem), GET_RT_NAME(elem));
 
 #define DEFINE_FOREACH(struct_name, fields)                 \
     template<class F>                                       \
     void for_each(struct_name & s, F f)                     \
     {                                                       \
-        BOOST_PP_SEQ_FOR_EACH_I(CALL, s, fields)            \
+        BOOST_PP_SEQ_FOR_EACH(CALL, fake_data, fields)      \
     }                                                       \
 
 #define DEF_OBJECT(name, fields)        \
