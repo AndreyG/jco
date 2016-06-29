@@ -50,7 +50,7 @@ namespace jco
                 push_state(State::Initial);
             }
 
-            ~implementation()
+            ~implementation() noexcept(false)
             {
                 if ((state_.size() != 1) || (state_.top() != State::Terminal))
                     throw SerializationError();
